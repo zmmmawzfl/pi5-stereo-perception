@@ -1,0 +1,27 @@
+# PC 端：检测/融合/验证参数。
+camera:
+  width: 640
+  height: 480
+  fps: 30
+
+calib:
+  calib_path: data/calib/stereo_calib.npz
+
+sgbm:
+  num_disparities: 128
+  block_size: 5
+  texture_threshold: 6.0
+  lr_max_diff: 1.0
+  subpixel: true
+  learned_backend: none
+
+detect:
+  backend: auto
+  model_path: models/yolov8n.engine
+  conf: 0.25
+  imgsz: 640
+
+objects:
+  ground_classes: object,box,cup,bottle,chair
+  ground_band: 0.45
+  min_valid_ratio: 0.20

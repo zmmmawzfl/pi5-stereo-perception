@@ -1,0 +1,6 @@
+# 核心依赖（Pi 5 与 PC 都需要）
+# OpenCV 不在这里：Pi 用 apt 的 python3-opencv（与系统 Picamera2 配套），
+# PC 用 pip install opencv-python（或 opencv-contrib-python 以获得 WLS）。
+numpy>=1.24
+PyYAML>=6.0
+pyzmq>=25.0

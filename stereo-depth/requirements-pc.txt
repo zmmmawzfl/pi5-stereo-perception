@@ -1,0 +1,11 @@
+-r requirements.txt
+opencv-python>=4.8
+# 检测（阶段二起）
+ultralytics>=8.2
+# 学习型匹配器（阶段三，二选一）
+onnxruntime-gpu>=1.17
+# tensorrt>=10.0        # NVIDIA 官方 wheel，需与 CUDA 对齐
+# 延伸：TSDF（阶段四）
+open3d>=0.18
+# 可选：TensorRT 引擎推理
+# pycuda>=2022.1

@@ -1,0 +1,16 @@
+# Pi 5 端：只覆盖与默认值不同的部分。
+camera:
+  backend: auto
+  width: 640
+  height: 480
+  fps: 30
+  buffer_count: 3
+
+sync:
+  enabled: true
+  kp: 0.05
+
+stream:
+  transport: zmq
+  endpoint: tcp://0.0.0.0:5555
+  jpeg_quality: 90

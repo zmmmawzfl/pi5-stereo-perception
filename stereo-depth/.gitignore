@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+runs/
+data/recordings/
+data/calib/*.npz
+models/
+*.engine
+*.onnx
+*.mp4
+*.ply
