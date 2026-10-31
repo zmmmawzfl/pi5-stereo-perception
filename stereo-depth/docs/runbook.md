@@ -146,3 +146,38 @@ python -m tools.motion_jitter --replay-root data/recordings/static \
 - [ ] 静止目标深度抖动 < 基线 1–2%；
 - [ ] 记录 Pi 全开时的 CPU/温度/是否降频；
 - [ ] 记录一段已知距离（0.5 m / 1 m）做绝对误差表。
+
+## 7. ROS 2 / Foxglove 联调（在装了 ROS 2 的 PC 上）
+
+先确认纯 Python 管线能出点云（不需要 ROS 2）：
+
+```bash
+python -m pc.receive.live --replay-root data/recordings/day1 \
+    --calib data/calib/stereo_calib.npz --out runs/live --save-cloud-every 10
+```
+
+再起 ROS 2 节点：
+
+```bash
+source /opt/ros/humble/setup.bash
+python -m pc.ros2.pointcloud_node --calib data/calib/stereo_calib.npz \
+    --endpoint tcp://<PI_IP>:5555 --publish-hz 10
+ros2 run foxglove_bridge foxglove_bridge
+```
+
+检查顺序：
+
+1. `ros2 topic hz /stereo/points` 应接近 `--publish-hz`，而不是 Pi 的采集帧率；
+2. `ros2 topic echo /stereo/left/camera_info --once` 的 `width/height` 与深度图一致；
+3. Foxglove 里点云位置不飘、颜色正常（RGB 模式）、没有 normals；
+4. 静态 TF：`ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 world camera_left`；
+5. 端到端延迟与 CPU/内存记进验收表：`live` 的 `summary.json.resources` 是同一套进程级指标。
+
+常见故障：
+
+| 现象 | 检查 |
+|---|---|
+| Foxglove 点云全白/全黑 | 颜色字段是否为 `r/g/b`；面板 Color mode 选 RGB |
+| 点云不动/重叠 | TF 是否重复发布；decay 是否过大 |
+| RTAB-Map 不同步 | 图像、深度、camera_info 是否同一 `stamp`、同一尺寸 |
+| 代价地图 CPU 高 | 是否绕过体素直接喂了稠密点云；`/stereo/points` 应已降采样 |

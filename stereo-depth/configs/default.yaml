@@ -33,7 +33,7 @@ calib:
 
 sgbm:
   min_disparity: 0
-  num_disparities: 128     # 必须能被 16 整除
+  num_disparities: 96      # 64/96 为实时主线档位；必须能被 16 整除
   block_size: 5
   p1: 0                    # 0 = 8*bs^2
   p2: 0                    # 0 = 32*bs^2
@@ -46,6 +46,8 @@ sgbm:
   texture_threshold: 6.0   # 5x5 局部标准差阈值
   min_valid_ratio: 0.05
   subpixel: true
+  scale: 1.0               # 0.5 = 半分辨率匹配；算力不足时先降这里
+  roi_xywh: ""             # 归一化 "x,y,w,h"，空 = 全图；例如 "0,0.45,1,0.55"
   learned_backend: none    # none | onnx | tensorrt（阶段三）
   learned_model: ""
 
@@ -56,6 +58,18 @@ detect:
   imgsz: 640
   classes: null
   device: "0"
+
+pointcloud:
+  voxel_size_m: 0.03      # 体素降采样；0 = 不降采样
+  max_depth_m: 6.0
+  stride: 2               # 像素先稀疏采样，再体素降采样
+  frame_id: camera_left
+  cloud_topic: /stereo/points
+  objects_topic: /stereo/objects
+  left_image_topic: /stereo/left/image_rect
+  depth_topic: /stereo/depth
+  camera_info_topic: /stereo/left/camera_info
+  publish_rate_hz: 10.0
 
 objects:
   bbox_shrink: 0.15

@@ -1,0 +1,33 @@
+# RTAB-Map RGB-D 参数（配合 /stereo/left/image_rect + /stereo/depth + camera_info）
+#
+# 定位：导航用的低频地图/定位，不追求高保真网格。MemoryThr=300（200~500 区间），
+# DetectionRate=1.0 Hz，避免把 CPU 花在每帧建图上；TSDF/网格留给离线扩展。
+rtabmap:
+  ros__parameters:
+    frame_id: camera_left
+    subscribe_depth: true
+    subscribe_rgb: true
+    subscribe_scan: false
+    approx_sync: true
+    queue_size: 30
+
+    # 降低建图更新频率与内存增长
+    Rtabmap/DetectionRate: "1.0"
+    Rtabmap/MemoryThr: "300"
+    Mem/RehearsalSimilarity: "0.45"
+    Mem/ReduceGraph: "true"
+
+    # 视觉里程计/回环：先保守，实机再调
+    RGBD/NeighborLinkRefining: "true"
+    RGBD/ProximityBySpace: "true"
+    Reg/Strategy: "1"
+    Vis/FeatureType: "8"          # ORB
+    Kp/MaxFeatures: "400"
+    Kp/DetectorStrategy: "8"
+
+    # 占据栅格：导航消费，不做高保真网格
+    Grid/FromDepth: "true"
+    Grid/CellSize: "0.05"
+    Grid/RangeMax: "5.0"
+    Grid/MaxObstacleHeight: "2.0"
+    Grid/RayTracing: "true"

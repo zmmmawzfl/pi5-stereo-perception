@@ -62,7 +62,8 @@ class CalibConfig:
 @dataclass
 class SgbmConfig:
     min_disparity: int = 0
-    num_disparities: int = 128
+    # 64/96 是实时主线的推荐档位；128 留给近距离/高精度离线场景
+    num_disparities: int = 96
     block_size: int = 5
     p1: int = 8 * 5 * 5
     p2: int = 32 * 5 * 5
@@ -75,11 +76,53 @@ class SgbmConfig:
     texture_threshold: float = 6.0
     min_valid_ratio: float = 0.05
     subpixel: bool = True
+    # 算力旋钮：scale<1 先降分辨率匹配，再上采样视差；roi_xywh 只算关注区域。
+    # 归一化坐标 "x,y,w,h"（0~1），空串 = 全图。降分辨率时要求 min_disparity=0。
+    scale: float = 1.0
+    roi_xywh: str = ""
     # 学习型匹配器（阶段三）
     learned_backend: str = "none"  # none | onnx | tensorrt
     learned_model: str = ""
     learned_input_mode: str = "batch"  # batch(2x3xHxW) | concat(1x6xHxW)
     learned_input_size: str = ""       # 如 "640x480"；空 = 原图尺寸
+
+    def __post_init__(self) -> None:
+        if not (0.0 < float(self.scale) <= 1.0):
+            raise ValueError(f"sgbm.scale 必须在 (0,1] 内，当前 {self.scale}")
+        if int(self.num_disparities) <= 0 or int(self.num_disparities) % 16 != 0:
+            raise ValueError(f"sgbm.num_disparities 必须是 16 的倍数，当前 {self.num_disparities}")
+        if self.scale != 1.0 and int(self.min_disparity) != 0:
+            raise ValueError("sgbm.scale<1 时要求 min_disparity=0，避免视差尺度换算歧义")
+        if self.roi_xywh:
+            parts = [float(v) for v in str(self.roi_xywh).split(",")]
+            if len(parts) != 4 or not (0 <= parts[0] < 1 and 0 <= parts[1] < 1
+                                      and parts[2] > 0 and parts[3] > 0
+                                      and parts[0] + parts[2] <= 1.0001
+                                      and parts[1] + parts[3] <= 1.0001):
+                raise ValueError(f"sgbm.roi_xywh 需为归一化 'x,y,w,h'，当前 {self.roi_xywh!r}")
+
+
+@dataclass
+class PointCloudConfig:
+    """点云/ROS 2 发布参数（主线：点云 → 体素降采样 → 发布）。"""
+    voxel_size_m: float = 0.03          # 0 = 不降采样；0.03 是机器人避障的起点
+    max_depth_m: float = 6.0
+    stride: int = 2                     # 像素采样步长，先稀疏再体素
+    frame_id: str = "camera_left"
+    cloud_topic: str = "/stereo/points"
+    objects_topic: str = "/stereo/objects"
+    left_image_topic: str = "/stereo/left/image_rect"
+    depth_topic: str = "/stereo/depth"
+    camera_info_topic: str = "/stereo/left/camera_info"
+    publish_rate_hz: float = 10.0
+
+    def __post_init__(self) -> None:
+        if float(self.voxel_size_m) < 0:
+            raise ValueError(f"pointcloud.voxel_size_m 不能为负，当前 {self.voxel_size_m}")
+        if int(self.stride) < 1:
+            raise ValueError(f"pointcloud.stride 必须 >=1，当前 {self.stride}")
+        if float(self.publish_rate_hz) <= 0:
+            raise ValueError(f"pointcloud.publish_rate_hz 必须 >0，当前 {self.publish_rate_hz}")
 
 
 @dataclass
@@ -122,6 +165,7 @@ class AppConfig:
     sgbm: SgbmConfig = field(default_factory=SgbmConfig)
     detect: DetectConfig = field(default_factory=DetectConfig)
     objects: ObjectConfig = field(default_factory=ObjectConfig)
+    pointcloud: PointCloudConfig = field(default_factory=PointCloudConfig)
     proof: ProofConfig = field(default_factory=ProofConfig)
     # 合成场景（无相机时使用）
     scene: Dict[str, Any] = field(default_factory=dict)

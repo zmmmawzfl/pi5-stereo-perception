@@ -8,7 +8,9 @@ calib:
   calib_path: data/calib/stereo_calib.npz
 
 sgbm:
-  num_disparities: 128
+  num_disparities: 96
+  scale: 1.0
+  roi_xywh: ""
   block_size: 5
   texture_threshold: 6.0
   lr_max_diff: 1.0
@@ -20,6 +22,12 @@ detect:
   model_path: models/yolov8n.engine
   conf: 0.25
   imgsz: 640
+
+pointcloud:
+  voxel_size_m: 0.03
+  max_depth_m: 6.0
+  stride: 2
+  publish_rate_hz: 10.0
 
 objects:
   ground_classes: object,box,cup,bottle,chair

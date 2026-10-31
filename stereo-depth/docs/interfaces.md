@@ -146,6 +146,19 @@ FusedDisparity(disp, valid, source: uint8 HxW, stats: dict)
 ### 点云 `.ply`
 
 二进制小端，`x y z red green blue`（float32 + uint8），BGR 输入会在写出时转 RGB。
+生成顺序：像素 stride 采样 → `Z=fB/d` 反投影 → 体素降采样（默认 0.03 m，同体素取质心/平均色）。
+
+### ROS 2 话题（`pc/ros2/pointcloud_node.py`）
+
+| 话题 | 类型 | 关键字段 |
+|---|---|---|
+| `/stereo/points` | `sensor_msgs/PointCloud2` | `x,y,z` float32；`r,g,b` uint8；`point_step=16`；`frame_id=camera_left` |
+| `/stereo/depth` | `sensor_msgs/Image` | `encoding=16UC1`，mm，0=无效，与左图同尺寸 |
+| `/stereo/left/image_rect` | `sensor_msgs/Image` | `encoding=bgr8`，校正后左图 |
+| `/stereo/left/camera_info` | `sensor_msgs/CameraInfo` | 校正内参；`D=0`，`K=K1`，`P=P1` |
+| `/stereo/objects` | `std_msgs/String` | JSON：`pair_id/objects/coverage/timings_ms/skew_ms` |
+
+点云与 PLY 使用同一相机坐标系和单位；不发布 normals（导航/可视化不需要，省带宽）。
 
 ## 5. 失败策略
 
@@ -159,3 +172,10 @@ FusedDisparity(disp, valid, source: uint8 HxW, stats: dict)
 
 `configs/*.yaml` 与 `shared/config.py` 的 dataclass 一一对应；未知字段直接报错（防拼写错误静默生效）。
 命令行覆盖用点路径：`load_config(path, {"camera.backend": "synthetic"})`。
+
+算力相关的三项：
+
+- `sgbm.num_disparities`：默认 96（实时档位；必须是 16 的倍数）。
+- `sgbm.scale`：`(0,1]`，0.5 = 半分辨率匹配后视差上采样；要求 `min_disparity=0`。
+- `sgbm.roi_xywh`：归一化 `"x,y,w,h"`，只算关注区域；ROI 外像素一律无效。
+- `pointcloud.voxel_size_m`：默认 0.03；`0` 关闭体素降采样。

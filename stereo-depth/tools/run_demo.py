@@ -19,7 +19,7 @@ import cv2
 import numpy as np
 
 from pc.calib.calibrate import CalibrationResult, calibrate_stereo
-from pc.depth.pointcloud import colored_pointcloud, depth_visualization, write_ply
+from pc.depth.pointcloud import colored_pointcloud, depth_visualization, voxel_downsample, write_ply
 from pc.fuse.router import SOURCE_LEARNED, SOURCE_SGBM
 from pc.pipeline import StereoPipeline
 from pc.validate import report as rpt
@@ -146,7 +146,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     cv2.imwrite(str(out / "disparity.png"), cv2.applyColorMap(disp_vis, cv2.COLORMAP_JET))
     save_source_map(result.fused, out / "disparity_source.png")
 
-    points, colors = colored_pointcloud(render.left, result.fused, calib, stride=2)
+    points_raw, colors_raw = colored_pointcloud(
+        render.left, result.fused, calib,
+        stride=cfg.pointcloud.stride, max_depth_m=cfg.pointcloud.max_depth_m,
+    )
+    points, colors = voxel_downsample(points_raw, colors_raw, cfg.pointcloud.voxel_size_m)
     write_ply(out / "cloud.ply", points, colors)
     (out / "objects.json").write_text(
         json.dumps(result.object_json(), ensure_ascii=False, indent=2), encoding="utf-8"
@@ -250,23 +254,30 @@ def main(argv: Optional[list[str]] = None) -> int:
         ("4. 物体级深度误差", per_object_table + "\n" + bands),
         ("5. 地面约束前后对比", rpt.comparison_table(rows_u, rows_c)),
         ("6. 覆盖率与处理帧率", coverage_note + "\n\n" + timing_table),
-        ("7. 压缩伪影量化", rpt.compression_block(compression)),
         (
-            "8. 学习型匹配器与阶段三决策",
+            "7. 点云与体素降采样",
+            f"- 像素步长 stride={cfg.pointcloud.stride}，最大深度 {cfg.pointcloud.max_depth_m:.1f} m。\n"
+            f"- 降采样前 {len(points_raw):,} 点 → 体素 {cfg.pointcloud.voxel_size_m:.3f} m 后 "
+            f"{len(points):,} 点（保留 {len(points) / max(len(points_raw), 1) * 100:.1f}%）。\n"
+            f"- 点云坐标：X 右 / Y 下 / Z 前，单位米；PLY 与 ROS 2 PointCloud2 使用同一坐标系。\n",
+        ),
+        ("8. 压缩伪影量化", rpt.compression_block(compression)),
+        (
+            "9. 学习型匹配器与阶段三决策",
             learned_state
             + "\n\n阶段三唯一要回答的问题（误差是否下降、覆盖率是否显著扩大、帧率是否达标）"
             "必须在目标 PC 上用 Fast-FoundationStereo/HITNet 实测；当前证据不足以做保留/回退决策，"
             "因此默认策略仍是纯 SGBM。\n",
         ),
         (
-            "9. 复现",
+            "10. 复现",
             "```bash\n"
             "python -m tools.run_demo --out runs/demo --frames 8 --compression\n"
             "python -m pc.calib.cli synthetic --out runs/demo/calib/stereo_calib.npz --views 15\n"
             "```\n",
         ),
         (
-            "10. 适用范围与限制",
+            "11. 适用范围与限制",
             "- 本报告由合成场景生成：无真实镜头畸变、无卷帘快门、无运动模糊、无 H.264 解码链路"
             "（压缩项单独测）；用于验证坐标/符号/单位与误差量级，不能替代实机验收。\n"
             "- 本机是 Raspberry Pi 5，帧率为 Pi 上的处理耗时；目标 PC（RTX 3060+）需复测。\n"
@@ -293,6 +304,12 @@ def main(argv: Optional[list[str]] = None) -> int:
         "sync_simulation": sync_stats,
         "compression": compression,
         "detector": result.meta.get("detector"),
+        "pointcloud": {
+            "voxel_size_m": cfg.pointcloud.voxel_size_m,
+            "stride": cfg.pointcloud.stride,
+            "points_raw": int(len(points_raw)),
+            "points": int(len(points)),
+        },
     }
     (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     (out / "objects_all.json").write_text(json.dumps(rows_c, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -300,7 +317,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if not args.no_report:
         rpt.write_markdown(
             out / "report.md",
-            "双目立体测距验证报告（合成场景）",
+            "实时双目 3D 场景感知验证报告（合成场景）",
             sections,
             meta=rpt.environment(),
         )
