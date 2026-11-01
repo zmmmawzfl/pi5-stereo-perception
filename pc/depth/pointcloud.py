@@ -56,8 +56,8 @@ def voxel_downsample(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """体素栅格降采样：每个体素输出一个质心点与平均颜色。
 
-    纯 NumPy 实现（不依赖 Open3D），按整数体素索引做 unique + 累加。
-    点数 2 万级时耗时 < 10 ms；空点云或 voxel<=0 时原样返回。
+    纯 NumPy 实现（不依赖 Open3D）：整数体素索引 + lexsort + reduceat。
+    点数 2 万级时约 10–20 ms；空点云或 voxel<=0 时原样返回。
     """
     pts = np.asarray(points, dtype=np.float32)
     cols = np.asarray(colors, dtype=np.uint8)

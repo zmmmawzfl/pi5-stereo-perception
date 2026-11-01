@@ -4,7 +4,7 @@ CALIB ?= runs/demo/calib/stereo_calib.npz
 .PHONY: help test demo calib day1 clean
 
 help:
-	@echo "make test   运行 61 个测试"
+	@echo "make test   运行 75 个测试"
 	@echo "make demo   合成场景端到端 demo + 压缩量化"
 	@echo "make calib  生成合成标定文件"
 	@echo "make day1   Pi 端时间戳基线（无相机时自动用 synthetic）"
