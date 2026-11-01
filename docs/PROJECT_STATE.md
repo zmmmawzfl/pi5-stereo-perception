@@ -2,8 +2,8 @@
 
 > 更新时间：2026-11-01
 > 仓库根目录：`/home/chenai/桌面/深度`（**注意：不再是 `深度/stereo-depth/`，项目已上移一层**）
-> 当前提交：`c38a34e Add unit tests for runtime monitoring, SGBM matcher, synchronization, and synthetic scene validation`
-> 当前工作区：HEAD `c38a34e` + 本交接文档与两处文案修改（未提交）；75 个测试全部通过。
+> 当前提交：`e35346e Update Makefile and add project state documentation`
+> 当前工作区：HEAD `e35346e` + 本文件的模型资产/adaptive ROI 说明更新（未提交）；75 个测试全部通过；`models/` 只放预下载权重，默认路径不加载。
 
 ---
 
@@ -22,13 +22,13 @@
 不是 3D 建模/CAD 软件，不做高保真纹理网格，不导出 Blender/SolidWorks，不直接给 6-DoF 抓取位姿，也不是 SLAM（自身不提供位姿）。
 
 **现在能做什么：**
-没有相机也能用**合成场景 + 录制回放**跑完整链路：标定、SGBM、融合、物体 3D、点云、压缩量化、报告。Pi↔PC 的 ZMQ 链路已在本机回环验证。
+没有相机也能用**合成场景 + 录制回放**跑完整链路：标定、SGBM、融合、物体 3D、点云、压缩量化、报告。Pi↔PC 的 ZMQ 链路已在本机回环验证。`models/` 已预下载 YOLOv8n 与 Fast-FoundationStereo ONNX，但默认路径不加载，见 3.4。
 
 **现在不能做什么：**
-实机相机采集、真实镜头标定、真实同步、真实精度、目标 PC 帧率、ROS 2/Foxglove/RTAB-Map/Nav2 运行期，都还没有验证。学习型匹配器（阶段三）没有任何实测。
+实机相机采集、真实镜头标定、真实同步、真实精度、目标 PC 帧率、ROS 2/Foxglove/RTAB-Map/Nav2 运行期，都还没有验证。学习型匹配器（阶段三）只有预下载的 ONNX，没有任何实测；本机也没有 onnxruntime/GPU。
 
 **下一步最重要的事：**
-相机到货后先做“第一天基线”（时间戳差 + 运动抖动 + 真实标定），再谈精度；ROS 2 相关只在装了 ROS 2 的机器上验证。
+相机到货后先做“第一天基线”（时间戳差 + 运动抖动 + 真实标定），再谈精度；ROS 2 相关只在装了 ROS 2 的机器上验证；模型权重只在目标 PC 上验证，不要在本机拿 `.pt`/ONNX 冒充延迟数字。
 
 ---
 
@@ -96,8 +96,8 @@ SGBM 是**度量锚点**。学习型匹配器只是阶段三的候选补全路�
 | 点云 + 体素降采样 | ✅ 合成/回放验证 | 20,620 → 3,518 点（0.03 m） |
 | ROS 2 发布节点 | ✅ 代码完成；❌ 运行期未验证 | 本机没有 ROS 2 |
 | Foxglove / RTAB-Map / Nav2 配置 | ✅ 文档/参数完成；❌ 未跑 | `docs/ros2_foxglove.md`、`ros2/config/` |
-| YOLO 检测 | ⚠️ 代码完成；❌ 权重/精度未验证 | 无 ultralytics、无引擎、无权重；默认退彩色连通域 |
-| 学习型匹配器（阶段三） | ⚠️ ONNX 适配器骨架；❌ 未实测 | 无 GPU、无模型、无数字 |
+| YOLO 检测 | ⚠️ 权重已预下载；❌ 精度未验证 | `models/yolov8n.pt`；本机无 ultralytics/引擎；默认仍退彩色连通域 |
+| 学习型匹配器（阶段三） | ⚠️ ONNX 已预下载；❌ 未实测 | `models/c_fast_foundationstereo_bp2_dynbatch_dynhw.onnx`；无 GPU/onnxruntime、无数字 |
 | TSDF（阶段四） | ⚠️ 代码完成；❌ 未跑 | 缺 Open3D、缺位姿；不作为主线 |
 | 实机真实精度/同步/CPU/延迟 | ❌ 全部待测 | 相机未到；目标 PC 未测试 |
 | 运动边界 / 准静态速度上界 | ⚠️ 工具就绪；❌ 未测 | `tools/motion_jitter.py` |
@@ -119,7 +119,8 @@ SGBM 是**度量锚点**。学习型匹配器只是阶段三的候选补全路�
 | PyYAML | 6.0.2 |
 | ffmpeg | 7.1.5（H.264 压缩量化） |
 | pytest | 9.2.0 |
-| 缺失 | ROS 2、Torch、ultralytics、Open3D、SciPy |
+| 缺失 | ROS 2、Torch、ultralytics、onnxruntime、Open3D、SciPy |
+| 模型资产 | `models/`（预下载，未加载；见 3.4） |
 | 虚拟环境 | `.venv/`，`--system-site-packages`，复用系统 OpenCV |
 
 **注意：** 本机是 Pi 5，不是目标 PC。`runs/demo` 的 3.75 fps 是 **Pi 上跑 PC 端 SGBM 的耗时**，不是 RTX 3060 的性能。
@@ -150,6 +151,19 @@ PC 端：
 - `requirements.txt`：numpy / PyYAML / pyzmq；
 - `requirements-pc.txt`：OpenCV、ultralytics、onnxruntime-gpu、open3d；
 - `requirements-dev.txt`：pytest。
+
+### 3.4 预下载模型资产（2026-11-01）
+
+`models/` 被 `.gitignore` 忽略，权重不进仓库；当前只是预下载，默认路径**不加载**。
+
+| 文件 | 大小 | 来源 | 许可 | 状态 |
+|---|---:|---|---|---|
+| `models/yolov8n.pt` | 6,549,796 B | Ultralytics assets v8.3.0 | AGPL-3.0 | 检测权重；需目标 PC 的 ultralytics；默认配置仍指向 `.engine` |
+| `models/c_fast_foundationstereo_bp2_dynbatch_dynhw.onnx` | 103,228,473 B | Hugging Face `nvidia/c-fast-foundationstereo` | NVIDIA Open Model Agreement（研究/评估） | 动态 H/W ONNX；适配器输入/归一化/输出语义未对齐，未运行 |
+
+- 两个文件已用 `sha256sum -c models/SHA256SUMS` 校验通过；下载来源与复现命令见 `models/README.md`。
+- 本机没有 ultralytics、onnxruntime、GPU，**没有模型推理数字**；不要用 `.pt`/ONNX 冒充 TensorRT 延迟。
+- FFS 模型卡写的是“无预处理、输出 16-bit 视差”，但仓库适配器按 ImageNet mean/std + float 像素视差实现，二者必须在目标 PC 上核对后再启用。
 
 ---
 
@@ -427,7 +441,8 @@ period = clip(base_period_us + step, min_frame_us, max_frame_us)
 - ROI：`roi_xywh` 归一化 `"x,y,w,h"`，只算关注区域，ROI 外无效；
 - 降分辨率：`scale` 对 ROI 做 `INTER_AREA`，视差上采样后 **除以 `scale`** 还原到原图；`scale<1` 时强制 `min_disparity=0`；
 - 可选 WLS（`use_wls`），默认关闭，Pi 上代价明显；
-- `meta` 记录 `scale/roi/work_size/num_disparities`。
+- `meta` 记录 `scale/roi/work_size/num_disparities`；
+- **自适应 ROI 已撤销（2026-11-01）**：曾用上一帧 `valid` 包围盒生成 ROI，连续帧实测左侧有效像素逐帧被侵蚀（valid 最小 x 96→138→184，两帧少约 17%），根因是 SGBM 左侧 `num_disparities` 无效边界 + ROI 继续从有效区收缩。补丁留在 `runs/adaptive_roi_reviewed.patch`（已忽略），不要按原方式重引入；算力旋钮继续用 `scale`/静态 `roi_xywh`。
 
 ### 7.5 融合路由
 
@@ -481,11 +496,13 @@ learned 只填 (~sgbm_ok) & learned.valid
 - `YoloDetector`：ultralytics，缺权重/包抛 `DetectorUnavailable`；
 - `ColorBlobDetector`：HSV 8 色相桶 + 连通域 + NMS，仅链路占位；
 - `auto`：有 `model_path` 文件才用 YOLO，否则彩色占位并打印告警；
-- 显式 `backend: yolo` 但权重缺失 → 直接报错，不静默降级。
+- 显式 `backend: yolo` 但权重缺失 → 直接报错，不静默降级；
+- **已预下载** `models/yolov8n.pt`（6.55 MB，Ultralytics AGPL-3.0），但默认配置仍指向 `models/yolov8n.engine`，本机没有 ultralytics，所以现有 demo 不受影响；在目标 PC 上要么改 `detect.model_path` 指向 `.pt`，要么导出 TensorRT 引擎。
 
 ### 7.10 学习型与 TSDF（可选，不阻塞主线）
 
 - `pc/stereo/learned.py`：ONNX 适配器 + TensorRT 显式报错入口；缺模型抛 `LearnedMatcherUnavailable`；
+- **已预下载** `models/c_fast_foundationstereo_bp2_dynbatch_dynhw.onnx`（约 98.4 MiB，NVIDIA Open Model Agreement，仅研究/评估），但本机没有 onnxruntime/GPU，适配器的 mean/std 与输出语义尚未对齐，**不能声称已接入**；
 - 阶段三顺序：Fast-FoundationStereo → HITNet → 降匹配分辨率 → 纯 SGBM；
 - 单目深度先验不进入本阶段（相对尺度污染绝对测距）；
 - `pc/tsdf/fuse_offline.py`：需要 Open3D + 显式 `poses_c2w`；没有位姿不融合。
@@ -649,8 +666,8 @@ Nav2 obstacle layer 见 `ros2/config/nav2_obstacle.yaml`；完整说明见 `docs
 | Pi CPU/散热 | 未测 | 编码+推流可能满载/降频 | 全开时看 `vcgencmd`/`top`，锁定 governor |
 | 目标 PC 帧率 | 未测 | 3.75 fps 是 Pi 数字 | RTX 3060 上跑同一 demo |
 | ROS 2 运行期 | 未装 ROS 2 | 话题/TF/QoS 可能有坑 | 在 Ubuntu 22.04 + Humble 跑 node + Foxglove |
-| YOLO 精度 | 权重缺失，彩色占位 | 物体框与类别不可用 | 导出 `yolov8n.engine`，用真实数据评估 |
-| 学习型匹配器 | 未实测 | 无法判断是否值得保留 | 按 `docs/stage3.md` 三项验收 |
+| YOLO 精度 | 权重已下载，本机无 ultralytics/引擎 | 物体框与类别仍不可用 | 在目标 PC 用真实数据评估；不要把 `.pt` 当 TensorRT 延迟 |
+| 学习型匹配器 | ONNX 已下载，未实测 | 无法判断是否值得保留 | 先核对输入/归一化/输出，再按 `docs/stage3.md` 三项验收 |
 | TSDF | 缺 Open3D/位姿 | 不能作为主线 | 先确定转台/机械臂位姿来源，再离线试 |
 | 相机移动/卷帘 | 未测 | 运动时深度抖动/几何畸变 | `tools/motion_jitter.py` 量化速度边界 |
 
@@ -680,8 +697,8 @@ Nav2 obstacle layer 见 `ros2/config/nav2_obstacle.yaml`；完整说明见 `docs
 ### P2：精度与扩展
 
 1. 真实数据上重跑压缩量化，确认 H.264 码率；
-2. 有 YOLO 权重后评估检测对物体 3D 的影响；
-3. 阶段三学习型 A/B（严格三项验收，不达标就回退）；
+2. YOLO 权重已就位，在目标 PC 上评估检测对物体 3D 的影响（本机不能跑 ultralytics）；
+3. 阶段三学习型 A/B（先核对 FFS ONNX 的输入/输出，再严格三项验收，不达标就回退）；
 4. 运动边界测试（速度上界）；
 5. TSDF 仅在位姿来源确定后做离线扩展。
 
@@ -711,6 +728,7 @@ Nav2 obstacle layer 见 `ros2/config/nav2_obstacle.yaml`；完整说明见 `docs
 | 联调排障 | `docs/runbook.md` |
 | ROS/Foxglove | `docs/ros2_foxglove.md` |
 | 阶段三 | `docs/stage3.md` |
+| 预下载模型 | `models/README.md`、`models/SHA256SUMS` |
 
 ---
 

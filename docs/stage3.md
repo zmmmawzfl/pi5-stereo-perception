@@ -37,6 +37,8 @@ SGBM valid && LR(|dL-dR|<=1) && texture>=阈值   -> 用 SGBM
 
 ### ONNX（先走这条，便于在 PyTorch/ONNX 之间对齐精度）
 
+> 2026-11-01 已预下载 `models/c_fast_foundationstereo_bp2_dynbatch_dynhw.onnx`（NVIDIA `nvidia/c-fast-foundationstereo`，动态 H/W，约 98.4 MiB）。本机没有 onnxruntime/GPU，**尚未运行**；先把下面的适配器约定与模型实际输入/输出对齐，再谈调参。
+
 ```bash
 # 假设模型输入为左右两图，输出像素视差（不是归一化视差）
 python -m tools.run_demo --config configs/pc.yaml --frames 8 \
@@ -64,7 +66,7 @@ python -m tools.run_demo --config configs/pc.yaml --frames 8 \
 在 PC 上导出（示例）：
 
 ```bash
-yolo export model=yolov8n.pt format=engine half=True        # 检测
+yolo export model=models/yolov8n.pt format=engine half=True  # 检测（权重已预下载）
 trtexec --onnx=models/ffs.onnx --fp16 --saveEngine=models/ffs_fp16.engine \
         --minShapes=left:1x3x480x640,right:1x3x480x640 \
         --optShapes=left:1x3x480x640,right:1x3x480x640 \
@@ -103,7 +105,7 @@ python -m tools.run_demo --out runs/stage3_fused --frames 20 --calib data/calib/
 三项全过 → 保留补全路径，并在运动场景复测抖动；
 误差下降不显著或延迟超预算 → 退回纯 SGBM，把结论写进报告。
 
-**当前仓库状态：未执行。** 没有模型、没有 GPU、没有实测数字。`runs/demo` 里的学习型段落会显式写"未启用/未实测"。
+**当前仓库状态：未执行。** 模型 ONNX 已预下载（见 `docs/PROJECT_STATE.md` 3.4），但没有 GPU/onnxruntime、没有接入、没有实测数字。`runs/demo` 里的学习型段落会显式写"未启用/未实测"。
 
 ## 6. 只补 SGBM 的失效区
 

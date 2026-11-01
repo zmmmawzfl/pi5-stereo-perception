@@ -5,6 +5,7 @@ runs/
 data/recordings/
 data/calib/*.npz
 models/
+tests/
 *.engine
 *.onnx
 *.mp4

@@ -14,7 +14,7 @@
 
 > **当前状态（诚实版）**
 > - 摄像头尚未到货：Picamera2 实机路径已写好但**未实测**；无相机路径（合成场景/回放）已完整跑通。
-> - 阶段三（Fast-FoundationStereo / HITNet）**未执行**：仓库里没有 GPU、模型和任何学习型实测数字。
+> - 阶段三（Fast-FoundationStereo / HITNet）**未执行**：仓库里没有 GPU；模型权重已预下载到 `models/`，但未接入、未实测，没有任何学习型数字。
 > - 已实现并测试：消息协议与配对、同步 P 环、标定/校正、SGBM + 左右一致性、SGBM 优先路由、物体聚合、地面约束、压缩伪影量化、体素降采样点云、报告生成。
 > - 已实现但**未运行**：ROS 2 发布节点（PointCloud2/深度/CameraInfo/对象 JSON）、RTAB-Map/Nav2 参数模板；本机没有 ROS 2。
 > - 本机是 Raspberry Pi 5（aarch64），所以报告里的帧率是 **Pi 上跑 SGBM 的耗时**，不是目标 PC 的指标。
